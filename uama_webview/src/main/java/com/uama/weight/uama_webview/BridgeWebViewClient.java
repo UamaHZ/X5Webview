@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * 如果要自定义WebViewClient必须要集成此类
  * Created by bruce on 10/28/15.
  */
 public class BridgeWebViewClient extends WebViewClient {
@@ -40,58 +41,58 @@ public class BridgeWebViewClient extends WebViewClient {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        if (url.contains("tel:")) {
-            showDialogs(url);
-            return true;
-        } else if (url != null && url.contains("image://?")) {
-            // 点击图片查看大图
-            String temp = url.replace("image://?", "");
-            String[] params = temp.split("&");
 
-            // 图片集
-            String[] imgUrl = null;
-            int index = 0;
-            for (String param : params) {
-                if (param.contains("url=")) {
-                    param = param.replace("url=", "");
-                    imgUrl = param.split(",");
-                } else if (param.contains("currentIndex=")) {
-                    param = param.replace("currentIndex=", "");
-                    try {
-                        index = Integer.parseInt(param);
-                    } catch (NumberFormatException e) {
-                        index = 0;
+        if (url.startsWith(BridgeUtil.YY_RETURN_DATA)) { // 如果是返回数据
+            webView.handlerReturnData(url);
+            return true;
+        } else if (url.startsWith(BridgeUtil.YY_OVERRIDE_SCHEMA)) { //
+            webView.flushMessageQueue();
+            return true;
+        } else {
+            if (url.contains("tel:")) {
+                showDialogs(url);
+                return true;
+            } else if (url.contains("image://?")) {
+                // 点击图片查看大图
+                String temp = url.replace("image://?", "");
+                String[] params = temp.split("&");
+
+                // 图片集
+                String[] imgUrl = null;
+                int index = 0;
+                for (String param : params) {
+                    if (param.contains("url=")) {
+                        param = param.replace("url=", "");
+                        imgUrl = param.split(",");
+                    } else if (param.contains("currentIndex=")) {
+                        param = param.replace("currentIndex=", "");
+                        try {
+                            index = Integer.parseInt(param);
+                        } catch (NumberFormatException e) {
+                            index = 0;
+                        }
                     }
                 }
-            }
 
-            if (imgUrl != null && imgUrl.length > 0) {
-                List<String> list = Arrays.asList(imgUrl);
-                listener.webviewImageClick(list, index);
-            }
-            return true;
-        } else if (url.startsWith("alipays://platformapi/startapp") || url.startsWith("alipays://platformapi/startApp")) {
-            // 截取网页打开客户端的链接，转换成 Intent 直接打开支付宝 APP
-            try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                context.startActivity(intent);
+                if (imgUrl != null && imgUrl.length > 0) {
+                    List<String> list = Arrays.asList(imgUrl);
+                    listener.webviewImageClick(list, index);
+                }
                 return true;
-            } catch (ActivityNotFoundException e) {
-                // 如果 url 解析失败或者没有安装支付宝 APP，会抛出异常
-                Toast.makeText(context, "您还未安装支付宝客户端，请安装后重试", Toast.LENGTH_LONG).show();
-                e.printStackTrace();
-                return true;
-            }
-        } else {
-            if (url.startsWith(BridgeUtil.YY_RETURN_DATA)) { // 如果是返回数据
-                webView.handlerReturnData(url);
-                return true;
-            } else if (url.startsWith(BridgeUtil.YY_OVERRIDE_SCHEMA)) { //
-                webView.flushMessageQueue();
-                return true;
+            } else if (url.startsWith("alipays://platformapi/startapp") || url.startsWith("alipays://platformapi/startApp")) {
+                // 截取网页打开客户端的链接，转换成 Intent 直接打开支付宝 APP
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    context.startActivity(intent);
+                    return true;
+                } catch (ActivityNotFoundException e) {
+                    // 如果 url 解析失败或者没有安装支付宝 APP，会抛出异常
+                    Toast.makeText(context, "您还未安装支付宝客户端，请安装后重试", Toast.LENGTH_LONG).show();
+                    e.printStackTrace();
+                    return true;
+                }
             } else if (url.startsWith("http:") || url.startsWith("https:")) {
-                webView.loadUrl(url);
-                return false;
+                return super.shouldOverrideUrlLoading(view, url);
             } else {
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
