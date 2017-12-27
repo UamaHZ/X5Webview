@@ -1,8 +1,11 @@
 package com.uama.weight.uama_webview;
 
+import android.text.TextUtils;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +66,12 @@ public class Message {
             jsonObject.put(CALLBACK_ID_STR, getCallbackId());
             jsonObject.put(DATA_STR, getData());
             jsonObject.put(HANDLER_NAME_STR, getHandlerName());
+            String data = getResponseData();
+            if (TextUtils.isEmpty(data)) {
+              jsonObject.put(RESPONSE_DATA_STR, data);
+            } else {
+              jsonObject.put(RESPONSE_DATA_STR, new JSONTokener(data).nextValue());
+            }
             jsonObject.put(RESPONSE_DATA_STR, getResponseData());
             jsonObject.put(RESPONSE_ID_STR, getResponseId());
             return jsonObject.toString();
