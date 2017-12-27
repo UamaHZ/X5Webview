@@ -81,6 +81,10 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
         return new BridgeWebViewClient(context,this);
     }
 
+    /**
+     * 获取到CallBackFunction data执行调用并且从数据集移除
+     * @param url
+     */
 	void handlerReturnData(String url) {
 		String functionName = BridgeUtil.getFunctionFromReturnUrl(url);
 		CallBackFunction f = responseCallbacks.get(functionName);
@@ -102,6 +106,12 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 		doSend(null, data, responseCallback);
 	}
 
+    /**
+     * 保存message到消息队列
+     * @param handlerName handlerName
+     * @param data data
+     * @param responseCallback CallBackFunction
+     */
 	private void doSend(String handlerName, String data, CallBackFunction responseCallback) {
 		Message m = new Message();
 		if (!TextUtils.isEmpty(data)) {
@@ -118,6 +128,10 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 		queueMessage(m);
 	}
 
+    /**
+     * list<message> != null 添加到消息集合否则分发消息
+     * @param m Message
+     */
 	private void queueMessage(Message m) {
 		if (startupMessage != null) {
 			startupMessage.add(m);
@@ -126,24 +140,32 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 		}
 	}
 
+    /**
+     * 分发message 必须在主线程才分发成功
+     * @param m Message
+     */
 	void dispatchMessage(Message m) {
         String messageJson = m.toJson();
-        //escape special characters for json string
+        //escape special characters for json string  为json字符串转义特殊字符
         messageJson = messageJson.replaceAll("(\\\\)([^utrn])", "\\\\\\\\$1$2");
         messageJson = messageJson.replaceAll("(?<=[^\\\\])(\")", "\\\\\"");
         String javascriptCommand = String.format(BridgeUtil.JS_HANDLE_MESSAGE_FROM_JAVA, messageJson);
+        // 必须要找主线程才会将数据传递出去 --- 划重点
         if (Thread.currentThread() == Looper.getMainLooper().getThread()) {
             this.loadUrl(javascriptCommand);
         }
     }
 
+    /**
+     * 刷新消息队列
+     */
 	void flushMessageQueue() {
 		if (Thread.currentThread() == Looper.getMainLooper().getThread()) {
 			loadUrl(BridgeUtil.JS_FETCH_QUEUE_FROM_JAVA, new CallBackFunction() {
 
 				@Override
 				public void onCallBack(String data) {
-					// deserializeMessage
+					// deserializeMessage 反序列化消息
 					List<Message> list = null;
 					try {
 						list = Message.toArrayList(data);
@@ -157,7 +179,7 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 					for (int i = 0; i < list.size(); i++) {
 						Message m = list.get(i);
 						String responseId = m.getResponseId();
-						// 是否是response
+						// 是否是response  CallBackFunction
 						if (!TextUtils.isEmpty(responseId)) {
 							CallBackFunction function = responseCallbacks.get(responseId);
 							String responseData = m.getResponseData();
@@ -165,7 +187,7 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 							responseCallbacks.remove(responseId);
 						} else {
 							CallBackFunction responseFunction = null;
-							// if had callbackId
+							// if had callbackId 如果有回调Id
 							final String callbackId = m.getCallbackId();
 							if (!TextUtils.isEmpty(callbackId)) {
 								responseFunction = new CallBackFunction() {
@@ -185,6 +207,7 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 									}
 								};
 							}
+							// BridgeHandler执行
 							BridgeHandler handler;
 							if (!TextUtils.isEmpty(m.getHandlerName())) {
 								handler = messageHandlers.get(m.getHandlerName());
@@ -203,27 +226,40 @@ public class BridgeWebView extends WebView implements WebViewJavascriptBridge {
 
 	public void loadUrl(String jsUrl, CallBackFunction returnCallback) {
 		this.loadUrl(jsUrl);
+        // 添加至 Map<String, CallBackFunction>
 		responseCallbacks.put(BridgeUtil.parseFunctionName(jsUrl), returnCallback);
 	}
 
 	/**
 	 * register handler,so that javascript can call it
-	 * 
-	 * @param handlerName
-	 * @param handler
+	 * 注册处理程序,以便javascript调用它
+	 * @param handlerName handlerName
+	 * @param handler BridgeHandler
 	 */
 	public void registerHandler(String handlerName, BridgeHandler handler) {
 		if (handler != null) {
+            // 添加至 Map<String, BridgeHandler>
 			messageHandlers.put(handlerName, handler);
 		}
 	}
 
 	/**
-	 * call javascript registered handler
+	 * unregister handler
 	 *
-     * @param handlerName
-	 * @param data
-	 * @param callBack
+	 * @param handlerName
+	 */
+	public void unregisterHandler(String handlerName) {
+		if (handlerName != null) {
+			messageHandlers.remove(handlerName);
+		}
+	}
+
+	/**
+	 * call javascript registered handler
+	 * 调用javascript处理程序注册
+     * @param handlerName handlerName
+	 * @param data data
+	 * @param callBack CallBackFunction
 	 */
 	public void callHandler(String handlerName, String data, CallBackFunction callBack) {
         doSend(handlerName, data, callBack);
