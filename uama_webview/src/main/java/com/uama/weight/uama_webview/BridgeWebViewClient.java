@@ -92,7 +92,8 @@ public class BridgeWebViewClient extends WebViewClient {
                     return true;
                 }
             } else if (url.startsWith("http:") || url.startsWith("https:")) {
-                return super.shouldOverrideUrlLoading(view, url);
+                webView.loadUrl(url);
+                return false;
             } else {
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
