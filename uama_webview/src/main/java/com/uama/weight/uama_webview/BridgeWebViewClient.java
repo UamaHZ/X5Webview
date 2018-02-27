@@ -37,68 +37,72 @@ public class BridgeWebViewClient extends WebViewClient {
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
 
-        if (url.startsWith(BridgeUtil.YY_RETURN_DATA)) { // 如果是返回数据
-            webView.handlerReturnData(url);
+        if (url.contains("tel:")) {
+            showDialogs(url);
             return true;
-        } else if (url.startsWith(BridgeUtil.YY_OVERRIDE_SCHEMA)) { //
-            webView.flushMessageQueue();
-            return true;
-        } else {
-            if (url.contains("tel:")) {
-                showDialogs(url);
-                return true;
-            } else if (url.contains("image://?")) {
-                // 点击图片查看大图
-                String temp = url.replace("image://?", "");
-                String[] params = temp.split("&");
+        } else if (url.contains("image://?")) {
+            // 点击图片查看大图
+            String temp = url.replace("image://?", "");
+            String[] params = temp.split("&");
 
-                // 图片集
-                String[] imgUrl = null;
-                int index = 0;
-                for (String param : params) {
-                    if (param.contains("url=")) {
-                        param = param.replace("url=", "");
-                        imgUrl = param.split(",");
-                    } else if (param.contains("currentIndex=")) {
-                        param = param.replace("currentIndex=", "");
-                        try {
-                            index = Integer.parseInt(param);
-                        } catch (NumberFormatException e) {
-                            index = 0;
-                        }
+            // 图片集
+            String[] imgUrl = null;
+            int index = 0;
+            for (String param : params) {
+                if (param.contains("url=")) {
+                    param = param.replace("url=", "");
+                    imgUrl = param.split(",");
+                } else if (param.contains("currentIndex=")) {
+                    param = param.replace("currentIndex=", "");
+                    try {
+                        index = Integer.parseInt(param);
+                    } catch (NumberFormatException e) {
+                        index = 0;
                     }
                 }
+            }
 
-                if (imgUrl != null && imgUrl.length > 0) {
-                    List<String> list = Arrays.asList(imgUrl);
-                    listener.webviewImageClick(list, index);
-                }
+            if (imgUrl != null && imgUrl.length > 0) {
+                List<String> list = Arrays.asList(imgUrl);
+                listener.webviewImageClick(list, index);
+            }
+            return true;
+        } else if (url.startsWith("alipays://platformapi/startapp") || url.startsWith("alipays://platformapi/startApp")) {
+            // 截取网页打开客户端的链接，转换成 Intent 直接打开支付宝 APP
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                context.startActivity(intent);
                 return true;
-            } else if (url.startsWith("alipays://platformapi/startapp") || url.startsWith("alipays://platformapi/startApp")) {
-                // 截取网页打开客户端的链接，转换成 Intent 直接打开支付宝 APP
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    context.startActivity(intent);
-                    return true;
-                } catch (ActivityNotFoundException e) {
-                    // 如果 url 解析失败或者没有安装支付宝 APP，会抛出异常
-                    Toast.makeText(context, "您还未安装支付宝客户端，请安装后重试", Toast.LENGTH_LONG).show();
-                    e.printStackTrace();
-                    return true;
-                }
-            } else if (url.startsWith("http:") || url.startsWith("https:")) {
-                webView.loadUrl(url);
-                return false;
-            } else {
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    context.startActivity(intent);
-                } catch (Exception e) {
-                    // 防止没有安装应用
-                    e.printStackTrace();
-                }
+            } catch (ActivityNotFoundException e) {
+                // 如果 url 解析失败或者没有安装支付宝 APP，会抛出异常
+                Toast.makeText(context, "您还未安装支付宝客户端，请安装后重试", Toast.LENGTH_LONG).show();
+                e.printStackTrace();
                 return true;
             }
+        } else if (url.startsWith("http:") || url.startsWith("https:")) {
+            return super.shouldOverrideUrlLoading(view, url);
+        } else if (url.startsWith(BridgeUtil.YY_OVERRIDE_SCHEMA)) { // js 桥的处理相关 url
+            try {
+                url = URLDecoder.decode(url, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+
+            if (url.startsWith(BridgeUtil.YY_RETURN_DATA)) { // 如果是返回数据
+                webView.handlerReturnData(url);
+            } else {
+                webView.flushMessageQueue();
+            }
+            return true;
+        } else {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                context.startActivity(intent);
+            } catch (Exception e) {
+                // 防止没有安装应用
+                e.printStackTrace();
+            }
+            return true;
         }
     }
 
