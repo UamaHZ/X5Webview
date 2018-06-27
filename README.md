@@ -1,3 +1,4 @@
+[![](https://jitpack.io/v/UamaHZ/X5Webview.svg)](https://jitpack.io/#UamaHZ/X5Webview)
 ##X5Webview的使用<br />
 名称：BridgeWebView&nbsp;<br />
 介绍：继承自腾讯X5Webview。<br />
